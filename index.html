@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blogger XML Template Converter</title>
+    <style>
+        :root {
+            --primary-color: #ff5722;
+            --secondary-color: #607d8b;
+            --light-color: #f5f5f5;
+            --dark-color: #212121;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .description {
+            background-color: var(--light-color);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+        }
+        
+        .converter-box {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .converter-box {
+                flex-direction: row;
+            }
+        }
+        
+        .input-section, .output-section {
+            flex: 1;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        button:hover {
+            background-color: #e64a19;
+        }
+        
+        button.secondary {
+            background-color: var(--secondary-color);
+        }
+        
+        button.secondary:hover {
+            background-color: #455a64;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .section-title {
+            color: var(--secondary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--light-color);
+            padding-bottom: 8px;
+        }
+        
+        .copy-notification {
+            background-color: #4caf50;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Blogger XML Template Converter</h1>
+        
+        <div class="description">
+            <p>This tool helps convert HTML and JavaScript code into Blogger-compatible XML format. Paste your HTML/JS in the left panel, click "Convert", and get XML-ready code for your Blogger template.</p>
+        </div>
+        
+        <div class="converter-box">
+            <div class="input-section">
+                <h2 class="section-title">Input HTML/JavaScript</h2>
+                <textarea id="inputCode" placeholder="Paste your HTML or JavaScript code here..."></textarea>
+                <div class="button-group">
+                    <button id="convertBtn">Convert to XML</button>
+                    <button id="clearInput" class="secondary">Clear Input</button>
+                </div>
+            </div>
+            
+            <div class="output-section">
+                <h2 class="section-title">Blogger XML Output</h2>
+                <textarea id="outputCode" placeholder="Your converted XML will appear here..." readonly></textarea>
+                <div class="button-group">
+                    <button id="copyBtn" class="secondary">Copy to Clipboard</button>
+                    <button id="clearOutput">Clear Output</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="copy-notification" id="copyNotification">Copied to clipboard!</div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputCode = document.getElementById('inputCode');
+            const outputCode = document.getElementById('outputCode');
+            const convertBtn = document.getElementById('convertBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const clearInput = document.getElementById('clearInput');
+            const clearOutput = document.getElementById('clearOutput');
+            const copyNotification = document.getElementById('copyNotification');
+            
+            // Conversion function
+            convertBtn.addEventListener('click', function() {
+                let html = inputCode.value;
+                
+                if (!html.trim()) {
+                    alert('Please enter some HTML/JavaScript to convert');
+                    return;
+                }
+                
+                // Basic conversions for Blogger XML compatibility
+                let xml = html
+                    // Replace & with &amp;
+                    .replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, '&amp;')
+                    // Replace < with &lt; in script tags
+                    .replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, function(match, p1, p2) {
+                        return '<script' + p1 + '>' + p2.replace(/</g, '&lt;') + '</script>';
+                    })
+                    // Replace < and > in style tags
+                    .replace(/<style([^>]*)>([\s\S]*?)<\/style>/g, function(match, p1, p2) {
+                        return '<style' + p1 + '>' + p2.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</style>';
+                    })
+                    // Replace CDATA sections
+                    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, function(match, p1) {
+                        return '<![CDATA[' + p1.replace(/</g, '&lt;').replace(/>/g, '&gt;') + ']]>';
+                    })
+                    // Escape remaining < and > that aren't part of tags
+                    .replace(/<(?![a-z\/!]|!--)/gi, '&lt;')
+                    .replace(/(?<!(?:[a-z]|!|--))>/gi, '&gt;')
+                    // Handle conditional comments
+                    .replace(/<!--\[if([\s\S]*?)>([\s\S]*?)<!\[endif\]-->/g, function(match, p1, p2) {
+                        return '&lt;!--[if' + p1 + ']&gt;' + p2 + '&lt;![endif]--&gt;';
+                    });
+                
+                outputCode.value = xml;
+            });
+            
+            // Copy to clipboard
+            copyBtn.addEventListener('click', function() {
+                if (!outputCode.value.trim()) {
+                    alert('No converted content to copy');
+                    return;
+                }
+                
+                outputCode.select();
+                document.execCommand('copy');
+                
+                // Show notification
+                copyNotification.style.display = 'block';
+                setTimeout(function() {
+                    copyNotification.style.display = 'none';
+                }, 2000);
+            });
+            
+            // Clear buttons
+            clearInput.addEventListener('click', function() {
+                inputCode.value = '';
+                inputCode.focus();
+            });
+            
+            clearOutput.addEventListener('click', function() {
+                outputCode.value = '';
+            });
+            
+            // Auto-focus input on page load
+            inputCode.focus();
+        });
+    </script>
+</body>
+</html>
