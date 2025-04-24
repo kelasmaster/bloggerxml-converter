@@ -125,6 +125,14 @@
             bottom: 20px;
             right: 20px;
             display: none;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
         }
     </style>
 </head>
@@ -178,29 +186,41 @@
                     return;
                 }
                 
-                // Basic conversions for Blogger XML compatibility
+                // First, protect CDATA sections
+                const cdataRegex = /<!\[CDATA\[([\s\S]*?)\]\]>/g;
+                const cdataSections = [];
+                let cdataIndex = 0;
+                
+                // Store CDATA sections and replace with placeholders
+                html = html.replace(cdataRegex, function(match, content) {
+                    cdataSections.push(content);
+                    return `<!-- CDATA_PLACEHOLDER_${cdataIndex++} -->`;
+                });
+                
+                // Convert HTML to XML
                 let xml = html
-                    // Replace & with &amp;
-                    .replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, '&amp;')
-                    // Replace < with &lt; in script tags
-                    .replace(/<script([^>]*)>([\s\S]*?)<\/script>/g, function(match, p1, p2) {
-                        return '<script' + p1 + '>' + p2.replace(/</g, '&lt;') + '</script>';
+                    // Convert & to &amp; (except existing entities)
+                    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;)/g, '&amp;')
+                    // Convert < to &lt; except in tags
+                    .replace(/<(?!(!--|\/)?[a-z][a-z0-9]*)/gi, '&lt;')
+                    // Convert > to &gt; except in tags
+                    .replace(/(?<!(?:[a-z0-9]|!|--))>/gi, '&gt;')
+                    // Handle script tags
+                    .replace(/<script([^>]*)>([\s\S]*?)<\/script>/gi, function(match, attrs, content) {
+                        return `<script${attrs}>${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</script>`;
                     })
-                    // Replace < and > in style tags
-                    .replace(/<style([^>]*)>([\s\S]*?)<\/style>/g, function(match, p1, p2) {
-                        return '<style' + p1 + '>' + p2.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</style>';
-                    })
-                    // Replace CDATA sections
-                    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, function(match, p1) {
-                        return '<![CDATA[' + p1.replace(/</g, '&lt;').replace(/>/g, '&gt;') + ']]>';
-                    })
-                    // Escape remaining < and > that aren't part of tags
-                    .replace(/<(?![a-z\/!]|!--)/gi, '&lt;')
-                    .replace(/(?<!(?:[a-z]|!|--))>/gi, '&gt;')
-                    // Handle conditional comments
-                    .replace(/<!--\[if([\s\S]*?)>([\s\S]*?)<!\[endif\]-->/g, function(match, p1, p2) {
-                        return '&lt;!--[if' + p1 + ']&gt;' + p2 + '&lt;![endif]--&gt;';
+                    // Handle style tags
+                    .replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, function(match, attrs, content) {
+                        return `<style${attrs}>${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</style>`;
                     });
+                
+                // Restore CDATA sections
+                for (let i = 0; i < cdataSections.length; i++) {
+                    xml = xml.replace(
+                        `<!-- CDATA_PLACEHOLDER_${i} -->`, 
+                        `<![CDATA[${cdataSections[i]}]]>`
+                    );
+                }
                 
                 outputCode.value = xml;
             });
@@ -215,7 +235,7 @@
                 outputCode.select();
                 document.execCommand('copy');
                 
-                // Show notification
+                // Show notification with animation
                 copyNotification.style.display = 'block';
                 setTimeout(function() {
                     copyNotification.style.display = 'none';
